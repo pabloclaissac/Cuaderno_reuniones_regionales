@@ -19,7 +19,13 @@ EXCEL_FILE = "Planificación 2025.xlsx"
 SHEET_NAME = "Hoja3"
 DB_FILE = "cuadernos.db"
 
-# Estilos CSS personalizados mejorados
+# Variables de ancho configurable
+REGION_BUTTON_WIDTH = "20px"  # Ancho de botones de regiones
+TOOLBAR_BUTTON_WIDTH = "20px"  # Ancho de botones en barra de herramientas
+SEARCH_BUTTON_WIDTH = "20px"  # Ancho de botones de búsqueda
+THEME_BUTTON_WIDTH = "20px"  # Ancho de botón "Insertar Tema"
+
+# Nuevos estilos CSS para el diseño solicitado
 st.markdown(f"""
     <style>
     /* Estilos generales de la barra lateral */
@@ -44,12 +50,12 @@ st.markdown(f"""
         flex-direction: column;
         gap: 0.5rem;
         padding: 0 0.5rem;
-        max-height: calc(5vh - 150px);
+        max-height: calc(100vh - 150px);
         overflow-y: auto;
     }}
     
-    /* Botones de regiones */
-    .tomo-button {{
+    /* Botones de regiones - AHORA CON CLASE ESPECÍFICA */
+    .region-button {{
         background-color: {BURDEOS};
         color: white !important;
         border: 1px solid rgba(255, 255, 255, 0.3);
@@ -60,9 +66,13 @@ st.markdown(f"""
         font-weight: bold;
         transition: all 0.3s ease;
         margin: 0;
+        width: {REGION_BUTTON_WIDTH} !important;
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
     }}
     
-    .tomo-button:hover {{
+    .region-button:hover {{
         background-color: #a04060;
         transform: translateY(-1px);
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
@@ -74,25 +84,39 @@ st.markdown(f"""
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }}
     
+    /* Contenedor principal */
+    .main-container {{
+        display: flex;
+        flex-direction: column;
+        height: calc(5vh - 100px);
+    }}
+    
+    /* Área superior (herramientas) */
+    .toolbar-container {{
+        background-color: white;
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+        margin-bottom: 5px;  /* Separación de 5px */
+    }}
+    
     /* Área del editor */
     .editor-container {{
-        background-image: url('https://i.imgur.com/hoja_fondo.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        padding: 125px 54px 64px 54px;
-        min-height: 940px;
+        flex-grow: 1;
+        background-color: white;
+        padding: 15px;
+        overflow: hidden;
     }}
     
     /* Barra de herramientas */
     .toolbar-section {{
-        margin-bottom: 1.2rem;
+        margin-bottom: 0.8rem;
     }}
     
     /* Botones de búsqueda */
     .search-buttons {{
         display: flex;
         gap: 0.8rem;
-        margin-top: 1.5rem;
+        margin-top: 0.8rem;
         justify-content: flex-end;
     }}
     
@@ -105,13 +129,38 @@ st.markdown(f"""
         background-color: transparent !important;
         line-height: 1.5;
         font-size: 1.05rem;
+        height: calc(100vh - 250px) !important;
     }}
     
     /* Encabezado principal */
     .main-header {{
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.8rem;
         border-bottom: 2px solid {BURDEOS};
         padding-bottom: 0.8rem;
+    }}
+    
+    /* Botones en barra de herramientas - CLASES ESPECÍFICAS */
+    .toolbar-button {{
+        width: {TOOLBAR_BUTTON_WIDTH} !important;
+        box-sizing: border-box;
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: 0 !important;
+    }}
+    
+    /* Botones de búsqueda - CLASES ESPECÍFICAS */
+    .search-button-custom {{
+        width: {SEARCH_BUTTON_WIDTH} !important;
+        box-sizing: border-box;
+    }}
+    
+    /* Botón Insertar Tema - CLASE ESPECÍFICA */
+    .theme-button {{
+        width: {THEME_BUTTON_WIDTH} !important;
+        box-sizing: border-box;
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -286,17 +335,15 @@ def init_session():
 def main():
     init_session()
     
-    # Barra lateral mejorada
+    # Barra lateral (izquierda)
     with st.sidebar:
-        # Título con estilo mejorado
         st.markdown('<div class="sidebar-title">CUADERNOS DE NOTAS</div>', unsafe_allow_html=True)
         
-        # Contenedor para los botones con scroll
         with st.container():
             st.markdown('<div class="tomo-container">', unsafe_allow_html=True)
             
             for tomo in st.session_state.tomo_names:
-                # Botones con estilo mejorado
+                # Botones de regiones con clase personalizada
                 if st.button(
                     tomo, 
                     key=f"btn_{tomo}", 
@@ -309,12 +356,15 @@ def main():
             
             st.markdown('</div>', unsafe_allow_html=True)
     
-    # Área principal
+    # Área principal (derecha) con dos subáreas
+    st.markdown('<div class="main-container">', unsafe_allow_html=True)
     st.markdown(f'<div class="main-header">Editor de Cuadernos Regionales - {st.session_state.current_tomo}</div>', 
                unsafe_allow_html=True)
     
-    # Barra de herramientas
+    # Subárea superior (herramientas)
     with st.container():
+        st.markdown('<div class="toolbar-container">', unsafe_allow_html=True)
+        
         col1, col2, col3 = st.columns([4, 3, 2])
         
         with col1:
@@ -334,17 +384,57 @@ def main():
             
         with col3:
             st.markdown('<div class="toolbar-section">', unsafe_allow_html=True)
-            st.button("➕ Comentario", key="btn_comment", use_container_width=True)
-            st.button("🔍 Buscar Comentarios", key="btn_search_comments", use_container_width=True)
+            # Botones con clase personalizada
+            st.button("➕ Comentario", key="btn_comment", use_container_width=True, 
+                      help="Agregar nuevo comentario", 
+                      type="secondary")
+            st.button("🔍 Buscar Comentarios", key="btn_search_comments", use_container_width=True,
+                      help="Buscar en comentarios existentes",
+                      type="secondary")
             st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Botones de búsqueda
+        st.markdown('<div class="search-buttons">', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+            if st.button("◄ Anterior", key="btn_prev", use_container_width=True, 
+                        help="Ir a la coincidencia anterior",
+                        type="secondary"):
+                search_text("prev")
+        
+        with col2:
+            if st.button("Siguiente ►", key="btn_next", use_container_width=True,
+                        help="Ir a la siguiente coincidencia",
+                        type="secondary"):
+                search_text("next")
+        
+        with col3:
+            if st.button("✕ Limpiar búsqueda", key="btn_clear", use_container_width=True,
+                        help="Limpiar resultados de búsqueda",
+                        type="secondary"):
+                st.session_state.search_term = ""
+                st.session_state.search_results = []
+                st.session_state.current_search_index = 0
+                st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Cierre de search-buttons
+        
+        # Botón para insertar tema con clase personalizada
+        if st.button("📝 Insertar Tema", key="btn_insert_theme", use_container_width=True,
+                    help="Insertar el tema seleccionado en el editor",
+                    type="primary"):
+            insert_theme()
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Cierre de toolbar-container
     
-    # Editor de texto
+    # Subárea inferior (editor) con separación de 5px
     with st.container():
         st.markdown('<div class="editor-container">', unsafe_allow_html=True)
         new_content = st.text_area(
             "Contenido:", 
             st.session_state.contenido_tomo, 
-            height=700,
+            height=500,  # La altura se controla con CSS
             key="editor_area",
             label_visibility="collapsed"
         )
@@ -356,34 +446,7 @@ def main():
                 st.session_state.current_tomo, 
                 st.session_state.contenido_tomo)
     
-    # Botones de búsqueda con mejor diseño
-    st.markdown('<div class="search-buttons">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1, 1])
-    
-    with col1:
-        if st.button("◄ Anterior", key="btn_prev", use_container_width=True, 
-                    help="Ir a la coincidencia anterior"):
-            search_text("prev")
-    
-    with col2:
-        if st.button("Siguiente ►", key="btn_next", use_container_width=True,
-                    help="Ir a la siguiente coincidencia"):
-            search_text("next")
-    
-    with col3:
-        if st.button("✕ Limpiar búsqueda", key="btn_clear", use_container_width=True,
-                    help="Limpiar resultados de búsqueda"):
-            st.session_state.search_term = ""
-            st.session_state.search_results = []
-            st.session_state.current_search_index = 0
-            st.rerun()
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Botón para insertar tema
-    if st.button("📝 Insertar Tema", key="btn_insert_theme", use_container_width=True,
-                help="Insertar el tema seleccionado en el editor"):
-        insert_theme()
+    st.markdown('</div>', unsafe_allow_html=True)  # Cierre del main-container
 
 # Funciones de búsqueda
 def search_text(direction):
@@ -439,5 +502,7 @@ def insert_theme():
     st.rerun()
 
 if __name__ == "__main__":
+    main()
 
     main()
+
