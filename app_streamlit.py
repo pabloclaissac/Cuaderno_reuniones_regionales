@@ -44,7 +44,7 @@ st.markdown(f"""
         flex-direction: column;
         gap: 0.5rem;
         padding: 0 0.5rem;
-        max-height: calc(100vh - 150px);
+        max-height: calc(5vh - 150px);
         overflow-y: auto;
     }}
     
@@ -439,4 +439,5 @@ def insert_theme():
     st.rerun()
 
 if __name__ == "__main__":
+
     main()
