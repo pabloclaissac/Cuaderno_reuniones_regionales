@@ -5,160 +5,91 @@ from datetime import datetime
 import os
 import re
 import openpyxl
-from openpyxl.utils import get_column_letter
 import numpy as np
 
-# Configuración de la página
+# === CONFIGURACIÓN DE PÁGINA (DEBE SER LA PRIMERA INVOCACIÓN) ===
 st.set_page_config(layout="wide", page_title="Editor de Cuadernos Regionales")
 
-# Constantes y estilos
+# === CONSTANTES Y ARCHIVOS ===
 BURDEOS = "#ac042b"
-AZUL_OSCURO = "#003366"
-GRIS_OSCURO = "#333333"
 EXCEL_FILE = "Planificación 2025.xlsx"
 SHEET_NAME = "Hoja3"
 DB_FILE = "cuadernos.db"
 
-# Variables de ancho configurable
-REGION_BUTTON_WIDTH = "200px"  # Ancho de botones de regiones
-TOOLBAR_BUTTON_WIDTH = "20px"  # Ancho de botones en barra de herramientas
-SEARCH_BUTTON_WIDTH = "20px"  # Ancho de botones de búsqueda
-THEME_BUTTON_WIDTH = "20px"  # Ancho de botón "Insertar Tema"
+# Anchos configurables (ajusta si quieres)
+REGION_BUTTON_WIDTH = "150px"  # ancho de botones en la barra lateral
+TOOLBAR_GAP_PX = 10  # espaciado vertical pedido
 
-# Nuevos estilos CSS para el diseño solicitado
+# === CSS GLOBAL ===
+# - estilos para la sidebar (botones más angostos)
+# - estilos generales del layout del editor
 st.markdown(f"""
     <style>
-    /* Estilos generales de la barra lateral */
+    /* Sidebar: fondo y estilo */
     [data-testid="stSidebar"] {{
         background-color: {BURDEOS};
         color: white;
+        padding-top: 8px;
     }}
-    
-    /* Título principal de la barra lateral */
     .sidebar-title {{
-        font-size: 1.4rem;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 0.5rem;
-        padding: 0.2rem;
-        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-    }}
-    
-    /* Contenedor de botones */
-    .tomo-container {{
-        display: flex;
-        flex-direction: column;
-        gap: 0.1rem;
-        padding: 0 0.5rem;
-        max-height: calc(100vh - 150px);
-        overflow-y: auto;
-    }}
-    
-    /* Botones de regiones - AHORA CON CLASE ESPECÍFICA */
-    .region-button {{
-        background-color: #ac042b;
-        color: #ac042b !important;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 4px;
-        padding: 0.7rem 0.5rem;
-        text-align: center;
-        font-size: 0.75rem;
-        font-weight: bold;
-        transition: all 0.3s ease;
-        margin: 0;
-        width: {REGION_BUTTON_WIDTH} !important;
-        display: block !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-    }}
-    
-    .region-button:hover {{
-        background-color: #DDEFFB;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    }}
-    
-    .active-tomo {{
-        background-color: #c6254b !important;
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }}
-    
-    /* Contenedor principal */
-    .main-container {{
-        display: flex;
-        flex-direction: column;
-        height: calc(5vh - 100px);
-    }}
-    
-    /* Área superior (herramientas) */
-    .toolbar-container {{
-        background-color: white;
-        padding: 15px;
-        border-bottom: 1px solid #e0e0e0;
-        margin-bottom: 5px;
-    }}
-    
-    /* Área del editor */
-    .editor-container {{
-        flex-grow: 1;
-        background-color: white;
-        padding: 15px;
-        overflow: hidden;
-    }}
-    
-    /* Barra de herramientas */
-    .toolbar-section {{
-        margin-bottom: 0.8rem;
-    }}
-    
-    /* Espaciado entre elementos */
-    .spacer {{
-        margin-top: 10px;
-    }}
-    
-    /* Textarea del editor */
-    .stTextArea textarea {{
-        background-color: transparent !important;
-        line-height: 1.5;
         font-size: 1.05rem;
-        height: calc(100vh - 250px) !important;
+        font-weight: 700;
+        color: white;
+        text-align: center;
+        margin-bottom: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
     }}
-    
-    /* Encabezado principal */
+
+    /* Limitar ancho de botones SOLO dentro de la sidebar */
+    [data-testid="stSidebar"] div.stButton > button {{
+        width: {REGION_BUTTON_WIDTH} !important;
+        height: 36px !important;
+        font-size: 0.9rem !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        margin: 4px auto !important;
+        display: block !important;
+        background-color: #ffffff10 !important;
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+    }}
+    [data-testid="stSidebar"] div.stButton > button:hover {{
+        background-color: rgba(255,255,255,0.06) !important;
+        transform: translateY(-1px);
+    }}
+
+    /* Contenedores principales */
     .main-header {{
-        margin-bottom: 0.8rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        padding-bottom: 8px;
         border-bottom: 2px solid {BURDEOS};
-        padding-bottom: 0.8rem;
+        margin-bottom: 6px;
     }}
-    
-    /* Botones en barra de herramientas - CLASES ESPECÍFICAS */
-    .toolbar-button {{
-        width: {TOOLBAR_BUTTON_WIDTH} !important;
-        box-sizing: border-box;
-        display: block !important;
-        margin-left: auto !important;
-        margin-right: 0 !important;
+
+    .toolbar-container {{
+        background-color: #ffffff;
+        padding: 8px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
     }}
-    
-    /* Botones de búsqueda - CLASES ESPECÍFICAS */
-    .search-button-custom {{
-        width: {SEARCH_BUTTON_WIDTH} !important;
-        box-sizing: border-box;
+
+    /* Espaciado utilizable */
+    .spacer-vertical {{
+        height: {TOOLBAR_GAP_PX}px;
     }}
-    
-    /* Botón Insertar Tema - CLASE ESPECÍFICA */
-    .theme-button {{
-        width: {THEME_BUTTON_WIDTH} !important;
-        box-sizing: border-box;
-        display: block !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
+
+    /* Ajuste del textarea (editor) */
+    .stTextArea > div > textarea {{
+        line-height: 1.4 !important;
+        font-size: 1rem !important;
     }}
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# Clase para manejar Excel
+# === CLASES DE SOPORTE (Excel y DB) ===
 class ExcelManager:
     @staticmethod
     def get_next_empty_row(worksheet):
@@ -166,12 +97,13 @@ class ExcelManager:
         while worksheet.cell(row=row, column=1).value is not None:
             row += 1
         return row
-    
+
     @staticmethod
     def save_to_excel(tomo_name, tema, detalle):
         try:
             if not os.path.exists(EXCEL_FILE):
                 wb = openpyxl.Workbook()
+                # borrar sheet "Sheet" si existe y crear la hoja deseada
                 if "Sheet" in wb.sheetnames:
                     del wb["Sheet"]
                 sheet = wb.create_sheet(SHEET_NAME)
@@ -189,7 +121,7 @@ class ExcelManager:
                     sheet['B1'] = "Fecha de Reunión"
                     sheet['C1'] = "Ítem de monitoreo"
                     sheet['D1'] = "Detalle"
-            
+
             next_row = ExcelManager.get_next_empty_row(sheet)
             sheet[f'A{next_row}'] = tomo_name
             sheet[f'B{next_row}'] = datetime.now().strftime("%d/%m/%Y")
@@ -201,18 +133,15 @@ class ExcelManager:
             st.error(f"Error al guardar en Excel: {e}")
             return False
 
-# Clase para manejar la base de datos (conexión por hilo)
 class DatabaseManager:
     def __init__(self, db_name=DB_FILE):
         self.db_name = db_name
         self.create_tables()
-    
+
     def get_connection(self):
-        """Crea una nueva conexión para cada operación"""
         return sqlite3.connect(self.db_name)
-    
+
     def create_tables(self):
-        """Crea las tablas si no existen"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
@@ -235,9 +164,8 @@ class DatabaseManager:
         ''')
         conn.commit()
         conn.close()
-    
+
     def get_cuaderno_id(self, nombre):
-        """Obtiene el ID de un cuaderno, creándolo si no existe"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM cuadernos WHERE nombre = ?", (nombre,))
@@ -255,9 +183,8 @@ class DatabaseManager:
             conn.commit()
             conn.close()
             return id
-    
+
     def guardar_hoja(self, cuaderno_nombre, contenido):
-        """Guarda una hoja en la base de datos"""
         cuaderno_id = self.get_cuaderno_id(cuaderno_nombre)
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -276,9 +203,8 @@ class DatabaseManager:
             )
         conn.commit()
         conn.close()
-    
+
     def cargar_hoja(self, cuaderno_nombre):
-        """Carga una hoja desde la base de datos"""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -288,223 +214,175 @@ class DatabaseManager:
         conn.close()
         return result[0] if result else ""
 
-# Inicialización de la aplicación
+# === INICIALIZACIÓN DE ESTADO DE SESIÓN ===
 def init_session():
     if "db_manager" not in st.session_state:
         st.session_state.db_manager = DatabaseManager()
-    
     if "tomo_names" not in st.session_state:
         st.session_state.tomo_names = [
-            "Arica", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", 
-            "Valparaíso", "R. Metropolitana", "O'Higgins", "Maule", "Ñuble", 
-            "Bío-Bío", "Araucanía", "Los Ríos", "Los Lagos", "Aysén", 
+            "Arica", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo",
+            "Valparaíso", "R. Metropolitana", "O'Higgins", "Maule", "Ñuble",
+            "Bío-Bío", "Araucanía", "Los Ríos", "Los Lagos", "Aysén",
             "Magallanes", "General"
         ]
-    
     if "temas" not in st.session_state:
         st.session_state.temas = [
             "Clima Laboral", "Ejecución Presupuestaria", "Indicadores de desempeño",
             "Informática", "Infraestructura", "Planificación", "Plan de SSPP",
             "Político Institucional", "Otros", "Temas Dpto. Personas"
         ]
-    
     if "current_tomo" not in st.session_state:
         st.session_state.current_tomo = st.session_state.tomo_names[0]
-    
     if "contenido_tomo" not in st.session_state:
         st.session_state.contenido_tomo = st.session_state.db_manager.cargar_hoja(
             st.session_state.current_tomo)
-    
     if "search_term" not in st.session_state:
         st.session_state.search_term = ""
-    
     if "search_results" not in st.session_state:
         st.session_state.search_results = []
-    
     if "current_search_index" not in st.session_state:
         st.session_state.current_search_index = 0
 
-# Funciones de búsqueda
+# === FUNCIONES: BÚSQUEDA E INSERCIÓN ===
 def search_text(direction):
+    # No hacer nada si no hay término
     if not st.session_state.search_term:
         return
-    
-    content = st.session_state.contenido_tomo
+
+    content = st.session_state.contenido_tomo or ""
     search_term = st.session_state.search_term.lower()
     matches = [m.start() for m in re.finditer(re.escape(search_term), content.lower())]
-    
+
     if not matches:
         st.warning("No se encontraron coincidencias")
         return
-    
-    if direction == "next":
-        if st.session_state.current_search_index < len(matches) - 1:
-            st.session_state.current_search_index += 1
-        else:
-            st.session_state.current_search_index = 0
-    else:  # prev
-        if st.session_state.current_search_index > 0:
-            st.session_state.current_search_index -= 1
-        else:
-            st.session_state.current_search_index = len(matches) - 1
-    
-    # Actualizar el editor para mostrar la coincidencia
-    start_pos = matches[st.session_state.current_search_index]
-    end_pos = start_pos + len(st.session_state.search_term)
-    st.session_state.editor_area = content
-    st.experimental_rerun()
 
-# Función para insertar temas
-def insert_theme():
-    theme = st.session_state.selected_theme
-    if not theme:
-        return
-    
-    # Insertar el tema en el contenido
-    new_content = st.session_state.contenido_tomo + f"\n{theme}\n"
-    st.session_state.contenido_tomo = new_content
-    
-    # Guardar en Excel
-    ExcelManager.save_to_excel(
-        st.session_state.current_tomo,
-        theme,
-        new_content)
-    
-    # Actualizar la base de datos
-    st.session_state.db_manager.guardar_hoja(
-        st.session_state.current_tomo, 
-        new_content)
-    
+    if direction == "next":
+        st.session_state.current_search_index = (st.session_state.current_search_index + 1) % len(matches)
+    else:  # prev
+        st.session_state.current_search_index = (st.session_state.current_search_index - 1) % len(matches)
+
+    # opcional: centramos el editor mostrando todo el contenido (no hay highlight nativo)
+    st.session_state.editor_area = content
     st.rerun()
 
-# Interfaz principal
+def insert_theme():
+    theme = st.session_state.get("selected_theme", "")
+    if not theme:
+        return
+
+    # Insertar el tema al final del contenido
+    new_content = (st.session_state.contenido_tomo or "") + f"\n{theme}\n"
+    st.session_state.contenido_tomo = new_content
+
+    # Guardar en Excel y DB
+    ExcelManager.save_to_excel(st.session_state.current_tomo, theme, new_content)
+    st.session_state.db_manager.guardar_hoja(st.session_state.current_tomo, new_content)
+    st.rerun()
+
+# === INTERFAZ PRINCIPAL ===
 def main():
     init_session()
-    
-    # Barra lateral (izquierda)
+
+    # ----------- BARRA LATERAL (CUADERNOS/TOMOS) -----------
     with st.sidebar:
         st.markdown('<div class="sidebar-title">CUADERNOS DE NOTAS</div>', unsafe_allow_html=True)
-        
-        with st.container():
-            st.markdown('<div class="tomo-container">', unsafe_allow_html=True)
-            
-            for tomo in st.session_state.tomo_names:
-                # Botones de regiones con clase personalizada
-                if st.button(
-                    tomo, 
-                    key=f"btn_{tomo}", 
-                    use_container_width=True,
-                    type="primary" if tomo == st.session_state.current_tomo else "secondary"
-                ):
-                    st.session_state.current_tomo = tomo
-                    st.session_state.contenido_tomo = st.session_state.db_manager.cargar_hoja(tomo)
-                    st.rerun()
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Área principal (derecha) con dos subáreas
-    st.markdown('<div class="main-container">', unsafe_allow_html=True)
-    st.markdown(f'<div class="main-header">Editor de Cuadernos Regionales - {st.session_state.current_tomo}</div>', 
-               unsafe_allow_html=True)
-    
-    # Subárea superior (herramientas) - NUEVA ESTRUCTURA DE 3 COLUMNAS
+        st.markdown('<div style="padding:6px 8px 12px 8px;">', unsafe_allow_html=True)
+
+        for tomo in st.session_state.tomo_names:
+            # usamos botones típicos; CSS dirigirá a los botones de la sidebar
+            if st.button(tomo, key=f"btn_tomo_{tomo}"):
+                st.session_state.current_tomo = tomo
+                st.session_state.contenido_tomo = st.session_state.db_manager.cargar_hoja(tomo)
+                # reset búsqueda
+                st.session_state.search_term = ""
+                st.session_state.search_results = []
+                st.session_state.current_search_index = 0
+                st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ----------- ÁREA PRINCIPAL (CABECERA + TOOLBAR + EDITOR) -----------
+    st.markdown(f'<div class="main-header">Editor de Cuadernos Regionales - {st.session_state.current_tomo}</div>', unsafe_allow_html=True)
+
+    # TOOLBAR superior dividida en 5 columnas (1, espacio, 3, espacio, 5)
     with st.container():
         st.markdown('<div class="toolbar-container">', unsafe_allow_html=True)
-        
-        # Dividir en 3 columnas de tamaño equivalente
-        col1, col2, col3 = st.columns([1, 1, 1])
-        
-        # Columna 1: Búsqueda y controles
+        col1, col2, col3, col4, col5 = st.columns([1, 0.06, 1, 0.06, 1])
+
+        # --- Columna 1: caja búsqueda + botones (fila) ---
         with col1:
             st.session_state.search_term = st.text_input(
-                "Buscar:", 
-                st.session_state.search_term, 
-                key="search_input",
+                "Buscar:", st.session_state.search_term, key="search_input",
                 placeholder="Buscar en el documento..."
             )
-            
-            # Controles de búsqueda (en fila)
-            st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
-            search_col1, search_col2, search_col3 = st.columns([1, 1, 1])
-            
-            with search_col1:
-                if st.button("◄ Anterior", key="btn_prev", use_container_width=True, 
-                            help="Ir a la coincidencia anterior",
-                            type="secondary"):
+            st.markdown('<div class="spacer-vertical"></div>', unsafe_allow_html=True)
+
+            bprev, bnext, bclear = st.columns([1,1,1])
+            with bprev:
+                if st.button("◄ Anterior", key="btn_prev"):
                     search_text("prev")
-            
-            with search_col2:
-                if st.button("Siguiente ►", key="btn_next", use_container_width=True,
-                            help="Ir a la siguiente coincidencia",
-                            type="secondary"):
+            with bnext:
+                if st.button("Siguiente ►", key="btn_next"):
                     search_text("next")
-            
-            with search_col3:
-                if st.button("✕ Limpiar", key="btn_clear", use_container_width=True,
-                            help="Limpiar resultados de búsqueda",
-                            type="secondary"):
+            with bclear:
+                if st.button("✕ Limpiar", key="btn_clear"):
                     st.session_state.search_term = ""
                     st.session_state.search_results = []
                     st.session_state.current_search_index = 0
                     st.rerun()
-        
-        # Columna 2: Temas
-        with col2:
-            st.selectbox("Temas", st.session_state.temas, key="selected_theme", index=0)
-            
-            # Botón Insertar Tema
-            st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
-            if st.button("📝 Insertar Tema", key="btn_insert_theme", use_container_width=True,
-                        help="Insertar el tema seleccionado en el editor",
-                        type="primary"):
-                insert_theme()
-        
-        # Columna 3: Comentarios
+
+        # --- Columna 3: selectbox de temas + botón insertar ---
         with col3:
-            if st.button("➕ Comentario", key="btn_comment", use_container_width=True, 
-                        help="Agregar nuevo comentario", 
-                        type="secondary"):
-                pass  # Aquí iría la lógica para agregar comentarios
-                
-            st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
-            if st.button("🔍 Buscar Comentarios", key="btn_search_comments", use_container_width=True,
-                        help="Buscar en comentarios existentes",
-                        type="secondary"):
-                pass  # Aquí iría la lógica para buscar comentarios
-                
-            st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
-            if st.button("💾 Guardar", key="btn_save", use_container_width=True,
-                        help="Guardar cambios en el documento",
-                        type="primary"):
-                # Guardar el contenido actual
+            st.selectbox("Temas", st.session_state.temas, key="selected_theme", index=0)
+            st.markdown('<div class="spacer-vertical"></div>', unsafe_allow_html=True)
+            if st.button("📝 Insertar Tema", key="btn_insert_theme"):
+                insert_theme()
+
+        # --- Columna 5: Comentarios / Buscar Comentarios / Guardar (vertical con 10px) ---
+        with col5:
+            if st.button("➕ Comentario", key="btn_comment"):
+                # Aquí podrías abrir modal o desplegar un input para crear comentario
+                # por ahora conservamos funcionalidad placeholder (sin mensaje innecesario)
+                st.session_state._last_action = "abrir_comentario"  # marca interna si necesitas
+            st.markdown('<div class="spacer-vertical"></div>', unsafe_allow_html=True)
+
+            if st.button("🔍 Buscar Comentarios", key="btn_search_comments"):
+                st.session_state._last_action = "buscar_comentarios"
+            st.markdown('<div class="spacer-vertical"></div>', unsafe_allow_html=True)
+
+            if st.button("💾 Guardar", key="btn_save"):
                 st.session_state.db_manager.guardar_hoja(
-                    st.session_state.current_tomo, 
-                    st.session_state.contenido_tomo)
+                    st.session_state.current_tomo,
+                    st.session_state.contenido_tomo or ""
+                )
                 st.success("Documento guardado correctamente")
-        
-        st.markdown('</div>', unsafe_allow_html=True)  # Cierre de toolbar-container
-    
-    # Subárea inferior (editor) con separación de 5px
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ---------- EDITOR: textarea que muestra y guarda contenido ----------
     with st.container():
-        st.markdown('<div class="editor-container">', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top:8px;">', unsafe_allow_html=True)
         new_content = st.text_area(
-            "Contenido:", 
-            st.session_state.contenido_tomo, 
-            height=500,  # La altura se controla con CSS
+            "Contenido:",
+            value=st.session_state.contenido_tomo or "",
+            height=520,
             key="editor_area",
             label_visibility="collapsed"
         )
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        if new_content != st.session_state.contenido_tomo:
+
+        # Guardar cambios automáticamente si hay edición (y actualizar DB)
+        if new_content != (st.session_state.contenido_tomo or ""):
             st.session_state.contenido_tomo = new_content
             st.session_state.db_manager.guardar_hoja(
-                st.session_state.current_tomo, 
-                st.session_state.contenido_tomo)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Cierre del main-container
+                st.session_state.current_tomo,
+                st.session_state.contenido_tomo
+            )
 
+# === EJECUCIÓN ===
 if __name__ == "__main__":
     main()
+
 
 
