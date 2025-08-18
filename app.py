@@ -1,4 +1,4 @@
-# app.py
+# app.py 
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
@@ -17,20 +17,21 @@ st.set_page_config(page_title="SEGUIMIENTO REGIONAL 2025", layout="wide")
 # =========================
 # VARIABLES DE COLOR
 # =========================
-PRIMARY = "#1165a6"
-BG = "#f2f2f2"
-BTN_PRIMARY_BG = "#e1fbff"
-BTN_PRIMARY_TEXT = "#333"
-BTN_PRIMARY_HOVER = "#c8f1f5"
-BTN_DELETE_BG = "#ffebee"
-BTN_DELETE_TEXT = "#c62828"
-BTN_DELETE_HOVER = "#ffcdd2"
-BTN_SECONDARY_BG = "#eeeeee"
-BTN_SECONDARY_TEXT = "#333"
-BTN_SECONDARY_HOVER = "#dddddd"
+PRIMARY = "#0F69B4"
+BG = "#ffffff"
+BTN_PRIMARY_BG = "#0F69B4"
+BTN_PRIMARY_TEXT = "#ffffff"
+BTN_PRIMARY_HOVER = "#DDEFFB"
+BTN_DELETE_BG = "#0F69B4"
+BTN_DELETE_TEXT = "#333"
+BTN_DELETE_HOVER = "#EA7A85"
+BTN_SECONDARY_BG = "#0F69B4"
+BTN_SECONDARY_TEXT = "#ffffff"  # Cambiado a blanco para coincidir con el diseño
+BTN_SECONDARY_HOVER = "#DDEFFB"
 
 DB_PATH = Path("seguimiento_regional.db")
 TABLE = "registros"
+EXCEL_FILE = "registros.xlsx"  # Archivo fijo para importación
 
 REGIONES = [
     "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo",
@@ -104,10 +105,19 @@ def get_all_records():
     df.insert(0, " ", False)
     return df
 
-def import_from_excel(uploaded_file):
-    """Importar registros desde un Excel, reemplazando completamente la tabla"""
+def export_to_excel():
+    """Exporta todos los registros a un archivo Excel fijo"""
+    df = get_all_records().drop(columns=[" "])
+    df.to_excel(EXCEL_FILE, index=False)
+    return True
+
+def import_from_fixed_excel():
+    """Importa registros desde el archivo Excel fijo"""
     try:
-        df = pd.read_excel(uploaded_file)
+        if not os.path.exists(EXCEL_FILE):
+            return False, f"Archivo {EXCEL_FILE} no encontrado"
+        
+        df = pd.read_excel(EXCEL_FILE)
 
         rename_map = {
             "N° Registro": "id",
@@ -134,7 +144,11 @@ def import_from_excel(uploaded_file):
                 if pd.isna(fecha_reunion) or fecha_reunion is None:
                     fecha_reunion = date.today().strftime("%Y-%m-%d")
                 else:
-                    fecha_reunion = pd.to_datetime(fecha_reunion).strftime("%Y-%m-%d")
+                    # Especificar explícitamente el formato de fecha
+                    fecha_reunion = pd.to_datetime(
+                        fecha_reunion, 
+                        format='%d-%m-%Y'  # Especificar formato día-mes-año
+                    ).strftime("%Y-%m-%d")
 
                 con.execute(f"""
                     INSERT INTO {TABLE} (direccion_regional, item_monitoreo, detalle, estado, plazo_dias, fecha_reunion)
@@ -148,6 +162,7 @@ def import_from_excel(uploaded_file):
                     fecha_reunion
                 ))
             con.commit()
+        
         return True, "Registros importados correctamente"
     except Exception as e:
         return False, f"Error al importar: {str(e)}"
@@ -265,9 +280,9 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 }}
 /* BOTÓN ELIMINAR */
 .stButton>button:not([kind]) {{
-    background-color: {BTN_DELETE_BG} !important;
-    border-color: {BTN_DELETE_BG} !important;
-    color: {BTN_DELETE_TEXT} !important;
+    background-color: {BTN_PRIMARY_BG} !important;
+    border-color: {BTN_PRIMARY_BG} !important;
+    color: {BTN_PRIMARY_TEXT} !important;
 }}
 .stButton>button:not([kind]):hover {{
     background-color: {BTN_DELETE_HOVER} !important;
@@ -293,6 +308,26 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 .stCheckbox>div>div>label>div:first-child {{
     margin-right: 8px;
 }}
+/* ESTILOS UNIFICADOS PARA BOTONES */
+/* Asegurar que todos los botones tengan el mismo tamaño */
+.col-button button {{
+    width: 100% !important;
+    min-height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
+}}
+/* Botón de descarga con estilo secundario */
+.stDownloadButton button {{
+    background-color: {BTN_SECONDARY_BG} !important;
+    border-color: {BTN_SECONDARY_BG} !important;
+    color: {BTN_SECONDARY_TEXT} !important;
+}}
+.stDownloadButton button:hover {{
+    background-color: {BTN_SECONDARY_HOVER} !important;
+    border-color: {BTN_SECONDARY_HOVER} !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -310,6 +345,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 init_db()
+
+# Exportar inicialmente si no existe el archivo
+if not os.path.exists(EXCEL_FILE):
+    export_to_excel()
 
 # =========================
 # Layout principal
@@ -375,39 +414,44 @@ with col_right:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
+        # Botón de exportación con estilo unificado
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
             df_all.drop(columns=[" "]).to_excel(writer, index=False)
+        
+        # Envolvemos en un contenedor para aplicar estilos
+        st.markdown('<div class="col-button">', unsafe_allow_html=True)
         st.download_button(
             "📤 Exportar Excel",
             data=excel_buffer.getvalue(),
-            file_name="registros.xlsx",
+            file_name=EXCEL_FILE,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="secondary"
         )
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
-        uploaded_file = st.file_uploader(
-            "📥 Importar Excel", 
-            type=["xlsx"],
-            accept_multiple_files=False,
-            key="excel_uploader",
-            label_visibility="collapsed"
-        )
-        
-        if uploaded_file:
-            success, message = import_from_excel(uploaded_file)
+        # Botón de importación
+        st.markdown('<div class="col-button">', unsafe_allow_html=True)
+        if st.button("📥 Importar Excel", type="secondary", key="import_btn", use_container_width=True):
+            success, message = import_from_fixed_excel()
             if success:
                 st.success(message)
                 st.rerun()
             else:
                 st.error(message)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col3:
-        submitted = st.button("💾 Registrar", type="primary")
+        # Botón de registro
+        st.markdown('<div class="col-button">', unsafe_allow_html=True)
+        submitted = st.button("💾 Registrar", type="primary", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col4:
-        if st.button("🗑️ Eliminar selección"):
+        # Botón de eliminación
+        st.markdown('<div class="col-button">', unsafe_allow_html=True)
+        if st.button("🗑️ Eliminar selección", use_container_width=True):
             if not selected_ids:
                 st.warning("Por favor, selecciona al menos un registro")
             else:
@@ -419,7 +463,10 @@ with col_right:
                         break
                 else:
                     st.success(f"{len(selected_ids)} registro(s) eliminado(s) correctamente")
+                    # Actualizar el archivo Excel después de eliminar
+                    export_to_excel()
                     st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 if submitted:
     detalle_content = st.session_state.detalle if "detalle" in st.session_state else ""
@@ -439,4 +486,7 @@ if submitted:
 
     new_id = insert_record(reg)
     st.success(f"Registro #{new_id} guardado correctamente.")
+    
+    # Actualizar el archivo Excel después de insertar
+    export_to_excel()
     st.rerun()
