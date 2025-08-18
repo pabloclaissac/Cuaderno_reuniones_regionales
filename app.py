@@ -178,7 +178,7 @@ st.markdown(f"""
 .topbar {{
     width: 100%;
     background: {PRIMARY};
-    height: 82px;
+    height: 120px;
     display: flex;
     align-items: center;
     position: relative;
@@ -190,19 +190,19 @@ st.markdown(f"""
     top: 10px;
     color: white;
     font-weight: 700;
-    font-size: 18px;
+    font-size: 45px;
 }}
 .logo small {{
     display:block;
     font-weight: 400;
-    font-size: 12px;
+    font-size: 16px;
 }}
 .title {{
     width: 100%;
     text-align: center;
     color: white;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 20px;
 }}
 .section-title {{
     font-weight: 700;
@@ -311,12 +311,12 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 /* ESTILOS UNIFICADOS PARA BOTONES */
 /* Asegurar que todos los botones tengan el mismo tamaño */
 .col-button button {{
-    width: 100% !important;
-    min-height: 38px !important;
+    width: 80% !important;
+    min-height: 35px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 14px !important;
+    font-size: 10px !important;
 }}
 /* Botón de descarga con estilo secundario */
 .stDownloadButton button {{
