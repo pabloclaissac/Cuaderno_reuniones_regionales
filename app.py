@@ -3,6 +3,7 @@
 import os
 import sqlite3
 import io
+import base64
 from datetime import date
 from pathlib import Path
 
@@ -46,6 +47,22 @@ ITEMS_MONITOREO = [
 ]
 
 ESTADOS = ["Pendiente", "En progreso", "Completado", "Cancelado"]
+
+# =========================
+# CONVERTIR IMAGEN LOCAL A BASE64
+# =========================
+def image_to_base64(path):
+    try:
+        with open(path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except FileNotFoundError:
+        st.error(f"Archivo de imagen no encontrado: {path}")
+        return None
+
+# Cargar imagen
+IMAGEN_LOCAL = "LOGO-PROPIO-ISL-2023-CMYK-01.png"
+img_base64 = image_to_base64(IMAGEN_LOCAL)
+img_src = f"data:image/png;base64,{img_base64}" if img_base64 else None
 
 # =========================
 # Funciones de la base de datos
@@ -175,34 +192,37 @@ st.markdown(f"""
 .stApp {{
     background: {BG};
 }}
-.topbar {{
-    width: 100%;
-    background: {PRIMARY};
-    height: 120px;
+.header-container {{
     display: flex;
     align-items: center;
+    justify-content: center;
+    background-color: {PRIMARY};
+    height: 85px;
+    width: 100%;
+    color: white;
     position: relative;
     margin: -1rem -1rem 1.2rem -1rem;
 }}
-.logo {{
+.header-logo {{
     position: absolute;
-    left: 18px;
-    top: 10px;
-    color: white;
-    font-weight: 700;
-    font-size: 45px;
+    left: 20px;
+    top: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }}
-.logo small {{
-    display:block;
-    font-weight: 400;
-    font-size: 16px;
+.header-logo img {{
+    height: 60px;
 }}
-.title {{
-    width: 100%;
-    text-align: center;
-    color: white;
-    font-weight: 700;
+.header-subtitle {{
+    position: absolute;
+    bottom: 5px;
+    left: 20px;
+    font-size: 10px;
+}}
+.header-title {{
     font-size: 20px;
+    font-weight: bold;
 }}
 .section-title {{
     font-weight: 700;
@@ -367,17 +387,29 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 """, unsafe_allow_html=True)
 
 # =========================
-# Barra superior
+# Encabezado con logo
 # =========================
-st.markdown("""
-<div class="topbar">
-    <div class="logo">
-        ISL
-        <small>Coordinación Territorial</small>
+if img_src:
+    st.markdown(f"""
+    <div class="header-container">
+        <div class="header-logo">
+            <img src="{img_src}" alt="Logo">
+        </div>
+        <div class="header-subtitle">Coordinación Territorial</div>
+        <div class="header-title">SEGUIMIENTO REGIONAL 2025</div>
     </div>
-    <div class="title">SEGUIMIENTO REGIONAL 2025</div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+else:
+    # Fallback al diseño original si no hay imagen
+    st.markdown(f"""
+    <div class="topbar">
+        <div class="logo">
+            ISL
+            <small>Coordinación Territorial</small>
+        </div>
+        <div class="title">SEGUIMIENTO REGIONAL 2025</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 init_db()
 
