@@ -168,7 +168,7 @@ def import_from_fixed_excel():
         return False, f"Error al importar: {str(e)}"
 
 # =========================
-# Estilos CSS
+# Estilos CSS (mejorados)
 # =========================
 st.markdown(f"""
 <style>
@@ -311,22 +311,57 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 /* ESTILOS UNIFICADOS PARA BOTONES */
 /* Asegurar que todos los botones tengan el mismo tamaño */
 .col-button button {{
-    width: 80% !important;
+    width: 100% !important; /* Cambiado a 100% para igualar tamaño */
     min-height: 35px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     font-size: 10px !important;
+    white-space: nowrap; /* Evitar salto de línea */
 }}
 /* Botón de descarga con estilo secundario */
 .stDownloadButton button {{
     background-color: {BTN_SECONDARY_BG} !important;
     border-color: {BTN_SECONDARY_BG} !important;
     color: {BTN_SECONDARY_TEXT} !important;
+    width: 100% !important; /* Asegurar mismo ancho */
 }}
 .stDownloadButton button:hover {{
     background-color: {BTN_SECONDARY_HOVER} !important;
     border-color: {BTN_SECONDARY_HOVER} !important;
+}}
+
+/* ======================== */
+/* ESTILOS MEJORADOS TABLA  */
+/* ======================== */
+.stDataFrame {{
+    border: 1px solid #cccccc !important; /* Borde gris */
+    border-top: 3px solid {PRIMARY} !important; /* Borde superior azul */
+    box-shadow: 3px 3px 5px rgba(0,0,0,0.1) !important; /* Sombra suave */
+    border-radius: 4px !important; /* Esquinas redondeadas */
+}}
+
+/* Cabecera de la tabla */
+.stDataFrame thead tr th {{
+    background-color: #f0f0f0 !important;
+    color: #333 !important;
+    font-weight: bold !important;
+}}
+
+/* Filas alternadas */
+.stDataFrame tbody tr:nth-child(even) {{
+    background-color: #f9f9f9 !important;
+}}
+
+/* Hover en filas */
+.stDataFrame tbody tr:hover {{
+    background-color: #f0f8ff !important;
+}}
+
+/* Contenedor de botones con mismo ancho */
+.button-column-container {{
+    display: flex;
+    justify-content: center;
 }}
 </style>
 """, unsafe_allow_html=True)
