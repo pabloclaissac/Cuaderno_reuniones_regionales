@@ -395,7 +395,7 @@ if img_src:
         <div class="header-logo">
             <img src="{img_src}" alt="Logo">
         </div>
-        <div class="header-subtitle">Sección de Coordinación Territorial</div>
+        <div class="header-subtitle">Coordinación Territorial</div>
         <div class="header-title">SEGUIMIENTO REGIONAL 2025</div>
     </div>
     """, unsafe_allow_html=True)
@@ -557,4 +557,5 @@ if submitted:
     # Actualizar el archivo Excel después de insertar
     export_to_excel()
     st.rerun()
+
 
