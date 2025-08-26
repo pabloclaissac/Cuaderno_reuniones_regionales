@@ -1,9 +1,11 @@
-# app.py 
+# app_encabezado.py 
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
 import io
 import base64
+import secrets
+import string
 from datetime import date
 from pathlib import Path
 
@@ -14,6 +16,140 @@ import streamlit as st
 # Configuración base
 # =========================
 st.set_page_config(page_title="SEGUIMIENTO REGIONAL 2025", layout="wide")
+
+# =========================
+# Base de datos de usuarios
+# =========================
+USER_DB_PATH = Path("usuarios.db")
+
+def init_user_db():
+    """Inicializa la base de datos de usuarios"""
+    with sqlite3.connect(USER_DB_PATH) as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                secret_word TEXT NOT NULL
+            );
+        """)
+        
+        # Insertar usuarios por defecto si no existen
+        usuarios_por_defecto = [
+            ("dcostar@isl.gob.cl", "123456", "seguridad"),
+            ("pclaissacs@isl.gob.cl", "123456", "prevencion")
+        ]
+        
+        for email, password, secret_word in usuarios_por_defecto:
+            try:
+                con.execute(
+                    "INSERT OR IGNORE INTO usuarios (email, password, secret_word) VALUES (?, ?, ?)",
+                    (email, password, secret_word)
+                )
+            except Exception as e:
+                st.error(f"Error al insertar usuario {email}: {str(e)}")
+        con.commit()
+
+def get_user(email):
+    """Obtiene un usuario por email"""
+    with sqlite3.connect(USER_DB_PATH) as con:
+        cur = con.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
+        result = cur.fetchone()
+        if result:
+            return {
+                "id": result[0],
+                "email": result[1],
+                "password": result[2],
+                "secret_word": result[3]
+            }
+        return None
+
+def update_user_password(email, new_password):
+    """Actualiza la contraseña de un usuario"""
+    with sqlite3.connect(USER_DB_PATH) as con:
+        con.execute(
+            "UPDATE usuarios SET password = ? WHERE email = ?",
+            (new_password, email)
+        )
+        con.commit()
+        return True
+
+# =========================
+# Sistema de autenticación
+# =========================
+def generate_temp_password(length=8):
+    """Genera una contraseña temporal"""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for i in range(length))
+
+def check_authentication():
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+        st.session_state.current_user = None
+    
+    if not st.session_state.authenticated:
+        # Inicializar base de datos de usuarios
+        init_user_db()
+        
+        # Mostrar formulario de login en 5 columnas → todo en la central
+        col1, col2, col_center, col4, col5 = st.columns([1,1,2,1,1])
+        with col_center:
+            st.title("🔐 Acceso al Sistema")
+
+            tab1, tab2, tab3 = st.tabs(["Iniciar Sesión", "Recuperar Contraseña", "Cambiar Contraseña"])
+            
+            with tab1:
+                email = st.text_input("Correo electrónico", key="login_email")
+                password = st.text_input("Contraseña", type="password", key="login_password")
+                
+                if st.button("Ingresar", key="login_btn", use_container_width=True):
+                    user = get_user(email)
+                    if user and password == user["password"]:
+                        st.session_state.authenticated = True
+                        st.session_state.current_user = email
+                        st.success("✅ Credenciales correctas. Redirigiendo...")
+                        st.rerun()
+                    else:
+                        st.error("❌ Correo o contraseña incorrectos")
+            
+            with tab2:
+                st.subheader("Recuperar Contraseña")
+                recovery_email = st.text_input("Correo electrónico", key="recovery_email")
+                secret_word = st.text_input("Palabra secreta", type="password", key="secret_word")
+                
+                if st.button("Generar Clave Temporal", key="recover_btn", use_container_width=True):
+                    user = get_user(recovery_email)
+                    if user and secret_word == user["secret_word"]:
+                        temp_password = generate_temp_password()
+                        update_user_password(recovery_email, temp_password)
+                        st.success(f"✅ Clave temporal generada: **{temp_password}**")
+                        st.info("Por seguridad, cambie su contraseña después de ingresar al sistema.")
+                    else:
+                        st.error("❌ Correo o palabra secreta incorrectos")
+            
+            with tab3:
+                st.subheader("Cambiar Contraseña")
+                change_email = st.text_input("Correo electrónico", key="change_email")
+                current_password = st.text_input("Contraseña actual", type="password", key="current_password")
+                new_password = st.text_input("Nueva contraseña", type="password", key="new_password")
+                confirm_password = st.text_input("Confirmar nueva contraseña", type="password", key="confirm_password")
+                
+                if st.button("Cambiar Contraseña", key="change_btn", use_container_width=True):
+                    user = get_user(change_email)
+                    if not user:
+                        st.error("❌ Correo electrónico no válido")
+                    elif current_password != user["password"]:
+                        st.error("❌ Contraseña actual incorrecta")
+                    elif new_password != confirm_password:
+                        st.error("❌ Las contraseñas no coinciden")
+                    else:
+                        update_user_password(change_email, new_password)
+                        st.success("✅ Contraseña cambiada exitosamente")
+        
+        st.stop()  # Detener la ejecución hasta que se autentique
+
+# Verificar autenticación
+check_authentication()
 
 # =========================
 # VARIABLES DE COLOR
@@ -27,7 +163,7 @@ BTN_DELETE_BG = "#0F69B4"
 BTN_DELETE_TEXT = "#333"
 BTN_DELETE_HOVER = "#EA7A85"
 BTN_SECONDARY_BG = "#0F69B4"
-BTN_SECONDARY_TEXT = "#ffffff"  # Cambiado a blanco para coincidir con el diseño
+BTN_SECONDARY_TEXT = "#ffffff"  
 BTN_SECONDARY_HOVER = "#DDEFFB"
 
 DB_PATH = Path("seguimiento_regional.db")
@@ -331,7 +467,7 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 /* ESTILOS UNIFICADOS PARA BOTONES */
 /* Asegurar que todos los botones tengan el mismo tamaño */
 .col-button button {{
-    width: 100% !important; /* Cambiado a 100% para igualar tamaño */
+    width: 100% !important; /* Cambiado to 100% para igualar tamaño */
     min-height: 35px !important;
     display: flex !important;
     align-items: center !important;
@@ -382,6 +518,26 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 .button-column-container {{
     display: flex;
     justify-content: center;
+}}
+
+/* Estilos para las pestañas de autenticación */
+.stTabs [data-baseweb="tab-list"] {{
+    gap: 8px;
+}}
+
+.stTabs [data-baseweb="tab"] {{
+    height: 40px;
+    white-space: pre-wrap;
+    background-color: #f0f2f6;
+    border-radius: 4px 4px 0px 0px;
+    gap: 1px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}}
+
+.stTabs [aria-selected="true"] {{
+    background-color: {PRIMARY};
+    color: white;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -557,6 +713,7 @@ if submitted:
     # Actualizar el archivo Excel después de insertar
     export_to_excel()
     st.rerun()
+
 
 
 
