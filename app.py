@@ -223,6 +223,38 @@ def delete_record(record_id):
         con.execute(f"DELETE FROM {TABLE} WHERE id = ?", (record_id,))
         con.commit()
 
+def get_record(record_id):
+    """Obtiene un registro específico por ID"""
+    with sqlite3.connect(DB_PATH) as con:
+        cur = con.execute(f"SELECT * FROM {TABLE} WHERE id = ?", (record_id,))
+        result = cur.fetchone()
+        if result:
+            return {
+                "id": result[0],
+                "direccion_regional": result[1],
+                "item_monitoreo": result[2],
+                "detalle": result[3],
+                "estado": result[4],
+                "plazo_dias": result[5],
+                "fecha_reunion": result[6]
+            }
+        return None
+
+def update_record(record_id, reg):
+    """Actualiza un registro existente"""
+    with sqlite3.connect(DB_PATH) as con:
+        con.execute(f"""
+            UPDATE {TABLE} 
+            SET direccion_regional = ?, item_monitoreo = ?, detalle = ?, 
+                estado = ?, plazo_dias = ?, fecha_reunion = ?
+            WHERE id = ?
+        """, (
+            reg["direccion_regional"], reg["item_monitoreo"], reg["detalle"],
+            reg["estado"], reg["plazo_dias"], reg["fecha_reunion"], record_id
+        ))
+        con.commit()
+        return True
+
 def get_count():
     with sqlite3.connect(DB_PATH) as con:
         cur = con.execute(f"SELECT COUNT(*) FROM {TABLE}")
@@ -467,20 +499,23 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 /* ESTILOS UNIFICADOS PARA BOTONES */
 /* Asegurar que todos los botones tengan el mismo tamaño */
 .col-button button {{
-    width: 100% !important; /* Cambiado to 100% para igualar tamaño */
+    width: 100% !important;
     min-height: 35px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 10px !important;
-    white-space: nowrap; /* Evitar salto de línea */
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    white-space: nowrap;
 }}
 /* Botón de descarga con estilo secundario */
 .stDownloadButton button {{
     background-color: {BTN_SECONDARY_BG} !important;
     border-color: {BTN_SECONDARY_BG} !important;
     color: {BTN_SECONDARY_TEXT} !important;
-    width: 100% !important; /* Asegurar mismo ancho */
+    width: 100% !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
 }}
 .stDownloadButton button:hover {{
     background-color: {BTN_SECONDARY_HOVER} !important;
@@ -491,10 +526,10 @@ div[data-testid="stButton"] button[kind="primary"]:hover {{
 /* ESTILOS MEJORADOS TABLA  */
 /* ======================== */
 .stDataFrame {{
-    border: 1px solid #cccccc !important; /* Borde gris */
-    border-top: 3px solid {PRIMARY} !important; /* Borde superior azul */
-    box-shadow: 3px 3px 5px rgba(0,0,0,0.1) !important; /* Sombra suave */
-    border-radius: 4px !important; /* Esquinas redondeadas */
+    border: 1px solid #cccccc !important;
+    border-top: 3px solid {PRIMARY} !important;
+    box-shadow: 3px 3px 5px rgba(0,0,0,0.1) !important;
+    border-radius: 4px !important;
 }}
 
 /* Cabecera de la tabla */
@@ -573,10 +608,23 @@ init_db()
 if not os.path.exists(EXCEL_FILE):
     export_to_excel()
 
+# Inicializar variables de sesión para edición
+if 'editing_id' not in st.session_state:
+    st.session_state.editing_id = None
+if 'is_editing' not in st.session_state:
+    st.session_state.is_editing = False
+if 'record_to_edit' not in st.session_state:
+    st.session_state.record_to_edit = None
+
 # =========================
 # Layout principal
 # =========================
 col_left, col_middle, col_right = st.columns([0.4, 0.6, 1.0], gap="large")
+
+# Obtener el registro a editar si existe
+record_to_edit = None
+if st.session_state.record_to_edit:
+    record_to_edit = get_record(st.session_state.record_to_edit)
 
 with col_left:
     st.markdown('<div class="section-title">Registro de datos</div>', unsafe_allow_html=True)
@@ -591,25 +639,61 @@ with col_left:
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="form-row"><div class="form-label">Dirección Regional:</div></div>', unsafe_allow_html=True)
-    direccion = st.selectbox("Dirección Regional", REGIONES, index=REGIONES.index("Magallanes"), label_visibility="collapsed", key="dr")
+    
+    # Determinar el valor inicial basado en si estamos editando
+    default_dr_index = REGIONES.index("Magallanes")
+    if record_to_edit:
+        default_dr_index = REGIONES.index(record_to_edit["direccion_regional"])
+    
+    direccion = st.selectbox("Dirección Regional", REGIONES, index=default_dr_index, label_visibility="collapsed", key="dr")
 
     st.markdown('<div class="form-row"><div class="form-label">Ítem Monitoreo:</div></div>', unsafe_allow_html=True)
-    item = st.selectbox("Ítem Monitoreo", ITEMS_MONITOREO, index=0, label_visibility="collapsed", key="im")
+    
+    # Determinar el valor inicial basado en si estamos editando
+    default_im_index = 0
+    if record_to_edit:
+        default_im_index = ITEMS_MONITOREO.index(record_to_edit["item_monitoreo"])
+    
+    item = st.selectbox("Ítem Monitoreo", ITEMS_MONITOREO, index=default_im_index, label_visibility="collapsed", key="im")
 
     st.markdown('<div class="form-row"><div class="form-label">Estado:</div></div>', unsafe_allow_html=True)
-    estado = st.selectbox("Estado", ESTADOS, index=0, label_visibility="collapsed", key="est")
+    
+    # Determinar el valor inicial basado en si estamos editando
+    default_est_index = 0
+    if record_to_edit:
+        default_est_index = ESTADOS.index(record_to_edit["estado"])
+    
+    estado = st.selectbox("Estado", ESTADOS, index=default_est_index, label_visibility="collapsed", key="est")
 
     st.markdown('<div class="form-row"><div class="form-label">Plazo (Días):</div></div>', unsafe_allow_html=True)
-    plazo = st.number_input("Plazo (Días)", min_value=0, step=1, value=0, format="%d", label_visibility="collapsed", key="plz")
+    
+    # Determinar el valor inicial basado en si estamos editando
+    default_plz = 0
+    if record_to_edit:
+        default_plz = record_to_edit["plazo_dias"]
+    
+    plazo = st.number_input("Plazo (Días)", min_value=0, step=1, value=default_plz, format="%d", label_visibility="collapsed", key="plz")
 
     st.markdown('<div class="form-row"><div class="form-label">Fecha Reunión:</div></div>', unsafe_allow_html=True)
-    fecha = st.date_input("Fecha Reunión", value=date.today(), format="DD-MM-YYYY", label_visibility="collapsed", key="fec")
+    
+    # Determinar el valor inicial basado en si estamos editando
+    default_fec = date.today()
+    if record_to_edit:
+        default_fec = pd.to_datetime(record_to_edit["fecha_reunion"]).date()
+    
+    fecha = st.date_input("Fecha Reunión", value=default_fec, format="DD-MM-YYYY", label_visibility="collapsed", key="fec")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col_middle:
     st.markdown('<div class="section-title">Observaciones</div>', unsafe_allow_html=True)
-    detalle = st.text_area("Observaciones", key="detalle", label_visibility="collapsed", height=500)
+    
+    # Determinar el valor inicial basado en si estamos editando
+    default_detalle = ""
+    if record_to_edit:
+        default_detalle = record_to_edit["detalle"]
+    
+    detalle = st.text_area("Observaciones", value=default_detalle, key="detalle", label_visibility="collapsed", height=500)
 
 with col_right:
     st.markdown('<div class="section-title">Registros guardados</div>', unsafe_allow_html=True)
@@ -634,18 +718,17 @@ with col_right:
     
     selected_ids = edited_df[edited_df[" "]]["id"].tolist()
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        # Botón de exportación con estilo unificado
+        # Botón de exportación
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
             df_all.drop(columns=[" "]).to_excel(writer, index=False)
         
-        # Envolvemos en un contenedor para aplicar estilos
         st.markdown('<div class="col-button">', unsafe_allow_html=True)
         st.download_button(
-            "📤 Exportar Excel",
+            "Exportar Excel",
             data=excel_buffer.getvalue(),
             file_name=EXCEL_FILE,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -656,7 +739,7 @@ with col_right:
     with col2:
         # Botón de importación
         st.markdown('<div class="col-button">', unsafe_allow_html=True)
-        if st.button("📥 Importar Excel", type="secondary", key="import_btn", use_container_width=True):
+        if st.button("Importar Excel", type="secondary", key="import_btn", use_container_width=True):
             success, message = import_from_fixed_excel()
             if success:
                 st.success(message)
@@ -668,13 +751,19 @@ with col_right:
     with col3:
         # Botón de registro
         st.markdown('<div class="col-button">', unsafe_allow_html=True)
-        submitted = st.button("💾 Registrar", type="primary", use_container_width=True)
+        submitted = st.button("Registrar", type="primary", use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col4:
+        # Botón de modificación
+        st.markdown('<div class="col-button">', unsafe_allow_html=True)
+        modify_clicked = st.button("Modificar", type="secondary", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col5:
         # Botón de eliminación
         st.markdown('<div class="col-button">', unsafe_allow_html=True)
-        if st.button("🗑️ Eliminar selección", use_container_width=True):
+        if st.button("Eliminar selección", use_container_width=True):
             if not selected_ids:
                 st.warning("Por favor, selecciona al menos un registro")
             else:
@@ -691,8 +780,22 @@ with col_right:
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
+# Manejar clic en botón Modificar
+if modify_clicked:
+    if len(selected_ids) == 0:
+        st.warning("Por favor, selecciona un registro para modificar")
+    elif len(selected_ids) > 1:
+        st.warning("Por favor, selecciona solo un registro para modificar")
+    else:
+        record_id = selected_ids[0]
+        st.session_state.record_to_edit = record_id
+        st.session_state.is_editing = True
+        st.success(f"Registro #{record_id} cargado para modificación")
+        st.rerun()
+
+# Manejar envío del formulario (Registrar o Actualizar)
 if submitted:
-    detalle_content = st.session_state.detalle if "detalle" in st.session_state else ""
+    detalle_content = detalle
     
     if not detalle_content.strip():
         st.warning("Por favor, escribe las observaciones antes de registrar.")
@@ -707,13 +810,23 @@ if submitted:
         "fecha_reunion": fecha.strftime("%Y-%m-%d"),
     }
 
-    new_id = insert_record(reg)
-    st.success(f"Registro #{new_id} guardado correctamente.")
+    if st.session_state.is_editing and st.session_state.record_to_edit:
+        # Modo edición: actualizar registro existente
+        update_record(st.session_state.record_to_edit, reg)
+        st.success(f"Registro #{st.session_state.record_to_edit} actualizado correctamente.")
+        # Resetear estado de edición
+        st.session_state.editing_id = None
+        st.session_state.is_editing = False
+        st.session_state.record_to_edit = None
+    else:
+        # Modo nuevo: insertar registro
+        new_id = insert_record(reg)
+        st.success(f"Registro #{new_id} guardado correctamente.")
     
-    # Actualizar el archivo Excel después de insertar
+    # Actualizar el archivo Excel después de insertar/actualizar
     export_to_excel()
     st.rerun()
 
-
-
-
+# Mostrar indicador de modo edición
+if st.session_state.is_editing and st.session_state.record_to_edit:
+    st.info(f"Modo edición: Modificando registro #{st.session_state.record_to_edit}")
