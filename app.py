@@ -179,7 +179,7 @@ REGIONES = [
 ITEMS_MONITOREO = [
     "Indicadores de desempeño","Ejecución Presupuestaria","Clima Laboral", "Infraestructura",
     "Plan de SSPP", "Político Institucional",
-    "Temas de Personas", "Informática", "Otros"
+    "Temas Dpto. Personas", "Informática", "Otros"
 ]
 
 ESTADOS = ["Pendiente", "En progreso", "Completado", "Cancelado"]
@@ -830,3 +830,4 @@ if submitted:
 # Mostrar indicador de modo edición
 if st.session_state.is_editing and st.session_state.record_to_edit:
     st.info(f"Modo edición: Modificando registro #{st.session_state.record_to_edit}")
+
